@@ -23,6 +23,7 @@ from .config import (
 )
 from .pdf import inspect_pdf_bytes
 from .pipeline import PartialConversionError, convert_pdf
+from .downloads import trigger_download
 
 
 JOBS_DIR = PROJECT_ROOT / ".ocr_jobs"
@@ -56,7 +57,7 @@ def run() -> None:
         _cleanup_stale_jobs()
         st.session_state["job_cleanup_done"] = True
 
-    st.markdown('<div class="eyebrow">GPT-5.6 document vision</div>', unsafe_allow_html=True)
+    st.markdown('<div class="eyebrow">GPT-6 document vision</div>', unsafe_allow_html=True)
     st.markdown(
         '<h1 class="hero-title" style="color:#17251f !important">PDF to Word, without losing the page</h1>',
         unsafe_allow_html=True,
@@ -121,6 +122,7 @@ def run() -> None:
         st.session_state["upload_digest"] = upload_digest
         st.session_state.pop("downloads", None)
         st.session_state.pop("api_usage_report", None)
+        st.session_state.pop("auto_download_pending", None)
 
     for document in documents:
         st.markdown(
@@ -181,9 +183,8 @@ def run() -> None:
         options=list(MODEL_PRESETS),
         default=DEFAULT_MODEL_PRESET,
         help=(
-            "High Reasoning uses GPT-5.6 Sol for the hardest pages; Medium Reasoning "
-            "uses GPT-5.6 Terra for a quality/cost balance; Low Reasoning uses "
-            "GPT-5.6 Luna for the lowest cost."
+            "GPT-6 Sol is the default for detailed OCR. "
+            "GPT-6 Luna is the lower-cost option for higher-volume conversion."
         ),
     )
     include_native_text = st.checkbox(
@@ -214,6 +215,7 @@ def run() -> None:
         st.session_state["conversion_options"] = option_fingerprint
         st.session_state.pop("downloads", None)
         st.session_state.pop("api_usage_report", None)
+        st.session_state.pop("auto_download_pending", None)
     _privacy_note()
 
     selected_page_count = sum(len(document.page_numbers) for document in documents)
@@ -237,6 +239,7 @@ def run() -> None:
     ):
         st.session_state.pop("downloads", None)
         st.session_state.pop("api_usage_report", None)
+        st.session_state.pop("auto_download_pending", None)
         _run_batch_conversion(
             documents=documents,
             editable=editable,
@@ -439,17 +442,28 @@ def _run_batch_conversion(
         else:
             st.session_state.pop("api_usage_report", None)
 
-        if file_count > 1 and downloads:
+        output_count = sum(
+            filename.endswith((".docx", "-layout.json"))
+            for _, filename, _ in downloads
+        )
+        if downloads and (file_count > 1 or output_count > 1):
             downloads.insert(
                 0,
                 (
                     "Download all results (ZIP)",
-                    "layoutlens-batch-results.zip",
+                    (
+                        "layoutlens-batch-results.zip"
+                        if file_count > 1
+                        else f"{Path(_safe_filename(documents[0].name)).stem}-results.zip"
+                    ),
                     _build_download_zip(downloads),
                 ),
             )
         if downloads:
             st.session_state["downloads"] = downloads
+            st.session_state["download_id"] = job_id
+            if files_with_word_output:
+                st.session_state["auto_download_pending"] = job_id
         else:
             st.session_state.pop("downloads", None)
 
@@ -477,6 +491,7 @@ def _run_batch_conversion(
     except Exception as exc:
         st.session_state.pop("downloads", None)
         st.session_state.pop("api_usage_report", None)
+        st.session_state.pop("auto_download_pending", None)
         st.error(f"Conversion stopped: {_friendly_error(exc)}")
     finally:
         shutil.rmtree(job_dir, ignore_errors=True)
@@ -672,13 +687,27 @@ def _downloads() -> None:
     if not downloads:
         return
     st.subheader("Your files")
-    for label, filename, data in downloads:
+    download_id = st.session_state.get("download_id")
+    for index, (label, filename, data) in enumerate(downloads):
         mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         if filename.endswith(".json"):
             mime = "application/json"
         elif filename.endswith(".zip"):
             mime = "application/zip"
-        st.download_button(label, data=data, file_name=filename, mime=mime, use_container_width=True)
+        container_key = (
+            f"layoutlens_download_{download_id}"
+            if index == 0 and download_id
+            else None
+        )
+        with st.container(key=container_key):
+            st.download_button(
+                label, data=data, file_name=filename, mime=mime,
+                use_container_width=True, on_click="ignore",
+            )
+    pending = st.session_state.pop("auto_download_pending", None)
+    if pending and pending == download_id:
+        trigger_download(pending)
+    st.caption("Your download starts automatically. If it does not start, use a download button above.")
 
 
 def _feature_row() -> None:

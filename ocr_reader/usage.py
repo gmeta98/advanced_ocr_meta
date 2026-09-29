@@ -9,7 +9,7 @@ from .models import APICallUsage
 
 
 PRICING_SOURCE = "https://developers.openai.com/api/docs/pricing"
-PRICING_CHECKED_ON = "2026-08-04"
+PRICING_CHECKED_ON = "2026-09-28"
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,9 +22,8 @@ class TokenPricing:
 
 # Standard API prices in USD per one million tokens.
 MODEL_PRICING = {
-    "gpt-5.6-sol": TokenPricing(5.0, 0.5, 6.25, 30.0),
-    "gpt-5.6-terra": TokenPricing(2.0, 0.2, 2.5, 12.0),
-    "gpt-5.6-luna": TokenPricing(0.2, 0.02, 0.25, 1.2),
+    "gpt-6-sol": TokenPricing(2.0, 0.2, 2.5, 10.0),
+    "gpt-6-luna": TokenPricing(0.1, 0.01, 0.125, 0.5),
 }
 
 
@@ -168,8 +167,6 @@ def write_usage_report(
 
 def _pricing_for_model(model: str) -> TokenPricing | None:
     normalized = model.strip().lower()
-    if normalized == "gpt-5.6":
-        return MODEL_PRICING["gpt-5.6-sol"]
     for name, pricing in MODEL_PRICING.items():
         if normalized == name or normalized.startswith(f"{name}-"):
             return pricing

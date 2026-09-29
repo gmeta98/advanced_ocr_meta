@@ -17,11 +17,10 @@ class ModelPreset:
 
 
 MODEL_PRESETS = {
-    "High Reasoning": ModelPreset("gpt-5.6-sol", "high"),
-    "Medium Reasoning": ModelPreset("gpt-5.6-terra", "medium"),
-    "Low Reasoning": ModelPreset("gpt-5.6-luna", "low"),
+    "GPT-6 Sol": ModelPreset("gpt-6-sol", "medium"),
+    "GPT-6 Luna": ModelPreset("gpt-6-luna", "low"),
 }
-DEFAULT_MODEL_PRESET = "Medium Reasoning"
+DEFAULT_MODEL_PRESET = "GPT-6 Sol"
 
 
 def _resolve_env_file() -> Path | None:
@@ -55,7 +54,7 @@ def load_environment() -> Path | None:
 @dataclass(frozen=True, slots=True)
 class Settings:
     api_key: str
-    model: str = "gpt-5.6-terra"
+    model: str = "gpt-6-sol"
     reasoning_effort: str = "medium"
     max_workers: int = 2
     render_dpi: int = 260
@@ -83,7 +82,7 @@ class Settings:
             effort = "medium"
         return cls(
             api_key=key,
-            model=(_get_setting("OPENAI_MODEL", "gpt-5.6-terra") or "gpt-5.6-terra").strip(),
+            model=(_get_setting("OPENAI_MODEL", "gpt-6-sol") or "gpt-6-sol").strip(),
             reasoning_effort=effort,
             max_workers=workers,
             render_dpi=dpi,

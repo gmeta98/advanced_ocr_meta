@@ -30,10 +30,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="OCR quality preset",
     )
     parser.add_argument(
-        "--reasoning-level",
-        choices=("high", "medium", "low"),
-        default="medium",
-        help="OCR model: high=Sol, medium=Terra, low=Luna",
+        "--model",
+        choices=("sol", "luna"),
+        default="sol",
+        help="OCR model: sol=GPT-6 Sol (default), luna=GPT-6 Luna",
     )
     parser.add_argument("--json", action="store_true", help="Also save structured OCR layout JSON")
     parser.add_argument(
@@ -50,7 +50,7 @@ def main() -> None:
     pages = parse_page_spec(args.pages, info.page_count)
     needs_ocr = args.mode in {"editable", "both"} or args.json
     settings = Settings.from_environment(require_api_key=needs_ocr)
-    preset = MODEL_PRESETS[f"{args.reasoning_level.title()} Reasoning"]
+    preset = MODEL_PRESETS[f"GPT-6 {args.model.title()}"]
     settings = replace(
         settings,
         model=preset.model,
