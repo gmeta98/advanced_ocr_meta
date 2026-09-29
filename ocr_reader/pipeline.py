@@ -192,7 +192,7 @@ def _ocr_pages(
     completed: list[PageResult] = []
     total = len(pages)
     failure: Exception | None = None
-    _notify(progress, "Reading page layout with GPT-5.6 vision", 0, total)
+    _notify(progress, f"Reading page layout with {settings.model}", 0, total)
     try:
         with ThreadPoolExecutor(max_workers=min(settings.max_workers, total)) as executor:
             futures = {executor.submit(engine.extract_page, page): page for page in pages}
